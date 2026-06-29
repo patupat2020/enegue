@@ -9,17 +9,17 @@ def get_sections(count):
     return list(string.ascii_uppercase[:count])
 
 st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
-st.title("🚨 BNHS Emergency Headcount")
+st.title("🚨 BeNHS Emergency Headcount")
 
-# --- 1. SELECTION LOGIC (Outside the form for instant updates) ---
+# --- 1. SELECTION LOGIC ---
 teacher_name = st.text_input("Adviser Name")
-
 division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True)
 
 grade = None
 section = None
 section_label = ""
 
+# JHS Logic
 if division == "JHS":
     grade = st.selectbox("Grade Level", [7, 8, 9, 10], index=None)
     if grade:
@@ -27,17 +27,33 @@ if division == "JHS":
         section = st.selectbox("Section", get_sections(count), index=None)
         if section: section_label = f"JHS - Grade {grade} - {section}"
 
+# SHS Logic
 elif division == "SHS":
     grade = st.selectbox("Grade Level", [11, 12], index=None)
-    if grade:
+    
+    # Grade 11 Specifics
+    if grade == 11:
         track = st.radio("Track", ["TechPro", "Academics"], index=None, horizontal=True)
         if track:
             count = 10 if track == "TechPro" else 12
             section = st.selectbox("Section", get_sections(count), index=None)
-            if section: section_label = f"SHS - Grade {grade} - {track} - {section}"
+            if section: section_label = f"SHS - Grade 11 - {track} - {section}"
+    
+    # Grade 12 Specifics
+    elif grade == 12:
+        track = st.radio("Track", ["TVL", "ACAD"], index=None, horizontal=True)
+        if track == "TVL":
+            section = st.selectbox("Section", get_sections(9), index=None) # A-I
+            if section: section_label = f"SHS - Grade 12 - TVL - {section}"
+        elif track == "ACAD":
+            strand = st.selectbox("Strand", ["HUMSS", "STEM", "ABM", "SPORTS"], index=None)
+            if strand:
+                # Section mapping
+                strands = {"HUMSS": 5, "STEM": 3, "ABM": 3, "SPORTS": 1}
+                section = st.selectbox("Section", get_sections(strands[strand]), index=None)
+                if section: section_label = f"SHS - Grade 12 - ACAD - {strand} - {section}"
 
-# --- 2. INPUT FORM (Only for final entry and submission) ---
-# Only show the form if they have finished making selections
+# --- 2. INPUT FORM ---
 if section_label:
     st.write("---")
     with st.form("headcount_form"):
@@ -51,7 +67,6 @@ if section_label:
 
     # --- 3. SUBMISSION LOGIC ---
     DATA_FILE = "headcount_log.csv"
-    
     if submit:
         if not teacher_name:
             st.error("Please enter your name.")
