@@ -2,16 +2,25 @@ import streamlit as st
 import pandas as pd
 import string
 from datetime import datetime
-import os  # <--- This is the line that fixes your error
+import os
+import io
 
 # Helper: Generate list of section letters
 def get_sections(count):
     return list(string.ascii_uppercase[:count])
 
-st.set_page_config(page_title="BeNHS DRRM Headcount", page_icon="🚨")
+st.set_page_config(page_title="BeNHS SDRRM Headcount", page_icon="🚨")
 st.title("🚨 BeNHS Emergency Headcount")
 
-# --- 1. SELECTION LOGIC ---
+DATA_FILE = "headcount_log.csv"
+
+# --- 1. LOAD EXISTING DATA TO FILTER DUPLICATES ---
+already_submitted = []
+if os.path.exists(DATA_FILE):
+    df_existing = pd.read_csv(DATA_FILE)
+    already_submitted = df_existing['Section_Info'].unique().tolist()
+
+# --- 2. SELECTION LOGIC ---
 division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True)
 teacher_name = st.text_input("Adviser Name", key="adv_name")
 
@@ -24,38 +33,39 @@ if division == "JHS":
     grade = st.selectbox("Grade Level", [7, 8, 9, 10], index=None)
     if grade:
         count = 15 if grade == 7 else 14
-        section = st.selectbox("Section", get_sections(count), index=None)
-        if section: section_label = f"JHS - Grade {grade} - {section}"
+        all_sects = [f"JHS - Grade {grade} - {s}" for s in get_sections(count)]
+        # Filter out already submitted
+        available = [s for s in all_sects if s not in already_submitted]
+        
+        section_label = st.selectbox("Select Available Section", available, index=None)
 
 # SHS Logic
 elif division == "SHS":
     grade = st.selectbox("Grade Level", [11, 12], index=None)
-    
-    # Grade 11
     if grade == 11:
         track = st.radio("Track", ["TechPro", "Academics"], index=None, horizontal=True)
         if track:
             count = 10 if track == "TechPro" else 12
-            section = st.selectbox("Section", get_sections(count), index=None)
-            if section: section_label = f"SHS - Grade 11 - {track} - {section}"
-    
-    # Grade 12
+            all_sects = [f"SHS - Grade 11 - {track} - {s}" for s in get_sections(count)]
+            available = [s for s in all_sects if s not in already_submitted]
+            section_label = st.selectbox("Select Available Section", available, index=None)
+            
     elif grade == 12:
         track = st.radio("Track", ["TVL", "ACAD"], index=None, horizontal=True)
         if track:
             if track == "TVL":
-                section = st.selectbox("Section", get_sections(9), index=None) # A-I
-                if section: section_label = f"SHS - Grade 12 - TVL - {section}"
+                all_sects = [f"SHS - Grade 12 - TVL - {s}" for s in get_sections(9)]
+                available = [s for s in all_sects if s not in already_submitted]
+                section_label = st.selectbox("Select Available Section", available, index=None)
             elif track == "ACAD":
                 strand = st.selectbox("Strand", ["HUMSS", "STEM", "ABM", "SPORTS"], index=None)
                 if strand:
-                    # Section mapping
                     strands = {"HUMSS": 5, "STEM": 3, "ABM": 3, "SPORTS": 1}
-                    section = st.selectbox("Section", get_sections(strands[strand]), index=None)
-                    if section: section_label = f"SHS - Grade 12 - ACAD - {strand} - {section}"
+                    all_sects = [f"SHS - Grade 12 - ACAD - {strand} - {s}" for s in get_sections(strands[strand])]
+                    available = [s for s in all_sects if s not in already_submitted]
+                    section_label = st.selectbox("Select Available Section", available, index=None)
 
-# --- 2. INPUT FORM ---
-# Only show the form if they have finished making selections
+# --- 3. INPUT FORM ---
 if section_label:
     st.write("---")
     with st.form("headcount_form"):
@@ -67,8 +77,6 @@ if section_label:
         
         submit = st.form_submit_button("Submit Headcount")
 
-    # --- 3. SUBMISSION LOGIC ---
-    DATA_FILE = "headcount_log.csv"
     if submit:
         if not teacher_name:
             st.error("Please enter your name.")
@@ -84,20 +92,33 @@ if section_label:
             df = pd.DataFrame(entry)
             header = False if os.path.exists(DATA_FILE) else True
             df.to_csv(DATA_FILE, mode='a', header=header, index=False)
-            st.success(f"Report submitted for {section_label}. Stay safe!")
+            st.success(f"Report submitted for {section_label}. Refreshing list...")
+            st.rerun() # Refresh to update the 'available' list immediately
 
-# --- Coordinator Dashboard ---
+# --- 4. COORDINATOR DASHBOARD ---
 if st.sidebar.checkbox("Coordinator: View Master List"):
-    # This now works because 'os' is imported at the top!
-    if os.path.exists("headcount_log.csv"):
-        df = pd.read_csv("headcount_log.csv")
+    if os.path.exists(DATA_FILE):
+        df = pd.read_csv(DATA_FILE)
         st.write("### Current Headcount Status")
         st.dataframe(df)
-        st.metric("Total Missing Students", int(df['Missing'].sum()))
         
-        if st.button("Reset/Clear Data"):
-            if os.path.exists("headcount_log.csv"):
-                os.remove("headcount_log.csv")
-                st.rerun()
+        # Excel Download Logic
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False)
+        
+        st.download_button(
+            label="📥 Download Data as Excel",
+            data=buffer.getvalue(),
+            file_name="Headcount_Report.xlsx",
+            mime="application/vnd.ms-excel"
+        )
+        
+        st.write("---")
+        if st.button("Start New Month (Archive Data)"):
+            archive_name = f"headcount_archive_{datetime.now().strftime('%Y-%m-%d')}.csv"
+            os.rename(DATA_FILE, archive_name)
+            st.success(f"Data archived as {archive_name}. Ready for new entries.")
+            st.rerun()
     else:
         st.write("No data recorded yet.")
