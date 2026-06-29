@@ -1,65 +1,70 @@
-# --- IMPORT LIBRARIES AT THE VERY TOP ---
 import streamlit as st
 import pandas as pd
 import string
 from datetime import datetime
 import os
 
-# --- Helper: Generate list of section letters ---
+# Helper: Generate list of section letters
 def get_sections(count):
     return list(string.ascii_uppercase[:count])
 
 st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
-st.title("🚨 BeNHS Emergency Headcount")
+st.title("🚨 BNHS Emergency Headcount")
 
 # --- Input Form ---
 with st.form("headcount_form"):
-    teacher_name = st.text_input("Adviser Name")
+    teacher_name = st.text_input("Adviser Name", key="t_name")
     
-    # 1. No default division selected
-    division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True)
+    # 1. Select Division
+    division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True, key="div_select")
     
+    # Initialize variables for the form
     grade = None
     section = None
     section_label = ""
+    track = None
     
     # 2. Logic to show fields only after selection
     if division == "JHS":
-        grade = st.selectbox("Grade Level", [7, 8, 9, 10], index=None)
+        grade = st.selectbox("Grade Level", [7, 8, 9, 10], index=None, key="jhs_grade")
         if grade:
             if grade == 7:
-                section = st.selectbox("Section", get_sections(15), index=None)
+                section = st.selectbox("Section", get_sections(15), index=None, key="sec_jhs")
             else:
-                section = st.selectbox("Section", get_sections(14), index=None)
-            if section: section_label = f"JHS - Grade {grade} - {section}"
+                section = st.selectbox("Section", get_sections(14), index=None, key="sec_jhs")
+            
+            if section: 
+                section_label = f"JHS - Grade {grade} - {section}"
                 
     elif division == "SHS":
-        grade = st.selectbox("Grade Level", [11, 12], index=None)
+        grade = st.selectbox("Grade Level", [11, 12], index=None, key="shs_grade")
         if grade:
-            track = st.radio("Track", ["TechPro", "Academics"], index=None, horizontal=True)
+            track = st.radio("Track", ["TechPro", "Academics"], index=None, horizontal=True, key="shs_track")
             if track:
                 if track == "TechPro":
-                    section = st.selectbox("Section", get_sections(10), index=None)
+                    section = st.selectbox("Section", get_sections(10), index=None, key="sec_shs")
                 else:
-                    section = st.selectbox("Section", get_sections(12), index=None)
-                if section: section_label = f"SHS - Grade {grade} - {track} - {section}"
+                    section = st.selectbox("Section", get_sections(12), index=None, key="sec_shs")
+                
+                if section: 
+                    section_label = f"SHS - Grade {grade} - {track} - {section}"
 
     # Always show inputs, but they will be empty until choices are made
     col1, col2 = st.columns(2)
     with col1:
-        present = st.number_input("Students Present", min_value=0, step=1)
+        present = st.number_input("Students Present", min_value=0, step=1, key="present_val")
     with col2:
-        missing = st.number_input("Students Missing", min_value=0, step=1)
+        missing = st.number_input("Students Missing", min_value=0, step=1, key="missing_val")
     
-    # THE FIX: Always define the button inside the form
     submit = st.form_submit_button("Submit Headcount")
 
 # --- Submission Logic (Outside the 'with' block) ---
 DATA_FILE = "headcount_log.csv"
 
 if submit:
+    # Validation check
     if not teacher_name or not section_label:
-        st.error("Please ensure you have selected your Grade, Track/Section, and entered your Name.")
+        st.error("Please fill in all fields (Name, Division, Grade, and Section).")
     else:
         entry = {
             'Timestamp': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
