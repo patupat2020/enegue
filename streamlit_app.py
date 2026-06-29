@@ -8,12 +8,15 @@ import os
 def get_sections(count):
     return list(string.ascii_uppercase[:count])
 
-st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
+st.set_page_config(page_title="BeNHS DRRM Headcount", page_icon="🚨")
 st.title("🚨 BeNHS Emergency Headcount")
 
 # --- 1. SELECTION LOGIC ---
-teacher_name = st.text_input("Adviser Name")
+# First, Select Division
 division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True)
+
+# Adviser Name appears after Division selection
+teacher_name = st.text_input("Adviser Name", key="adv_name")
 
 grade = None
 section = None
@@ -31,7 +34,7 @@ if division == "JHS":
 elif division == "SHS":
     grade = st.selectbox("Grade Level", [11, 12], index=None)
     
-    # Grade 11 Specifics
+    # Grade 11
     if grade == 11:
         track = st.radio("Track", ["TechPro", "Academics"], index=None, horizontal=True)
         if track:
@@ -39,7 +42,7 @@ elif division == "SHS":
             section = st.selectbox("Section", get_sections(count), index=None)
             if section: section_label = f"SHS - Grade 11 - {track} - {section}"
     
-    # Grade 12 Specifics
+    # Grade 12
     elif grade == 12:
         track = st.radio("Track", ["TVL", "ACAD"], index=None, horizontal=True)
         if track == "TVL":
