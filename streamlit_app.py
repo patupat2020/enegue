@@ -11,74 +11,63 @@ def get_sections(count):
 st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
 st.title("🚨 BNHS Emergency Headcount")
 
-# --- Input Form ---
-with st.form("headcount_form"):
-    teacher_name = st.text_input("Adviser Name", key="t_name")
-    
-    # 1. Select Division
-    division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True, key="div_select")
-    
-    # Initialize variables for the form
-    grade = None
-    section = None
-    section_label = ""
-    track = None
-    
-    # 2. Logic to show fields only after selection
-    if division == "JHS":
-        grade = st.selectbox("Grade Level", [7, 8, 9, 10], index=None, key="jhs_grade")
-        if grade:
-            if grade == 7:
-                section = st.selectbox("Section", get_sections(15), index=None, key="sec_jhs")
-            else:
-                section = st.selectbox("Section", get_sections(14), index=None, key="sec_jhs")
-            
-            if section: 
-                section_label = f"JHS - Grade {grade} - {section}"
-                
-    elif division == "SHS":
-        grade = st.selectbox("Grade Level", [11, 12], index=None, key="shs_grade")
-        if grade:
-            track = st.radio("Track", ["TechPro", "Academics"], index=None, horizontal=True, key="shs_track")
-            if track:
-                if track == "TechPro":
-                    section = st.selectbox("Section", get_sections(10), index=None, key="sec_shs")
-                else:
-                    section = st.selectbox("Section", get_sections(12), index=None, key="sec_shs")
-                
-                if section: 
-                    section_label = f"SHS - Grade {grade} - {track} - {section}"
+# --- 1. SELECTION LOGIC (Outside the form for instant updates) ---
+teacher_name = st.text_input("Adviser Name")
 
-    # Always show inputs, but they will be empty until choices are made
-    col1, col2 = st.columns(2)
-    with col1:
-        present = st.number_input("Students Present", min_value=0, step=1, key="present_val")
-    with col2:
-        missing = st.number_input("Students Missing", min_value=0, step=1, key="missing_val")
-    
-    submit = st.form_submit_button("Submit Headcount")
+division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True)
 
-# --- Submission Logic (Outside the 'with' block) ---
-DATA_FILE = "headcount_log.csv"
+grade = None
+section = None
+section_label = ""
 
-if submit:
-    # Validation check
-    if not teacher_name or not section_label:
-        st.error("Please fill in all fields (Name, Division, Grade, and Section).")
-    else:
-        entry = {
-            'Timestamp': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-            'Teacher': [teacher_name],
-            'Level': [division],
-            'Section_Info': [section_label],
-            'Present': [present],
-            'Missing': [missing]
-        }
+if division == "JHS":
+    grade = st.selectbox("Grade Level", [7, 8, 9, 10], index=None)
+    if grade:
+        count = 15 if grade == 7 else 14
+        section = st.selectbox("Section", get_sections(count), index=None)
+        if section: section_label = f"JHS - Grade {grade} - {section}"
+
+elif division == "SHS":
+    grade = st.selectbox("Grade Level", [11, 12], index=None)
+    if grade:
+        track = st.radio("Track", ["TechPro", "Academics"], index=None, horizontal=True)
+        if track:
+            count = 10 if track == "TechPro" else 12
+            section = st.selectbox("Section", get_sections(count), index=None)
+            if section: section_label = f"SHS - Grade {grade} - {track} - {section}"
+
+# --- 2. INPUT FORM (Only for final entry and submission) ---
+# Only show the form if they have finished making selections
+if section_label:
+    st.write("---")
+    with st.form("headcount_form"):
+        col1, col2 = st.columns(2)
+        with col1:
+            present = st.number_input("Students Present", min_value=0, step=1)
+        with col2:
+            missing = st.number_input("Students Missing", min_value=0, step=1)
         
-        df = pd.DataFrame(entry)
-        header = False if os.path.exists(DATA_FILE) else True
-        df.to_csv(DATA_FILE, mode='a', header=header, index=False)
-        st.success(f"Report submitted for {section_label}. Stay safe!")
+        submit = st.form_submit_button("Submit Headcount")
+
+    # --- 3. SUBMISSION LOGIC ---
+    DATA_FILE = "headcount_log.csv"
+    
+    if submit:
+        if not teacher_name:
+            st.error("Please enter your name.")
+        else:
+            entry = {
+                'Timestamp': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+                'Teacher': [teacher_name],
+                'Level': [division],
+                'Section_Info': [section_label],
+                'Present': [present],
+                'Missing': [missing]
+            }
+            df = pd.DataFrame(entry)
+            header = False if os.path.exists(DATA_FILE) else True
+            df.to_csv(DATA_FILE, mode='a', header=header, index=False)
+            st.success(f"Report submitted for {section_label}. Stay safe!")
 
 # --- Coordinator Dashboard ---
 if st.sidebar.checkbox("Coordinator: View Master List"):
@@ -86,12 +75,9 @@ if st.sidebar.checkbox("Coordinator: View Master List"):
         df = pd.read_csv(DATA_FILE)
         st.write("### Current Headcount Status")
         st.dataframe(df)
-        
         st.metric("Total Missing Students", int(df['Missing'].sum()))
         
         if st.button("Reset/Clear Data"):
             if os.path.exists(DATA_FILE):
                 os.remove(DATA_FILE)
                 st.rerun()
-    else:
-        st.write("No data recorded.")
