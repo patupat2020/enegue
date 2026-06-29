@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import string
 from datetime import datetime
-import os
+import os  # <--- This is the line that fixes your error
 
 # Helper: Generate list of section letters
 def get_sections(count):
@@ -12,10 +12,7 @@ st.set_page_config(page_title="BeNHS DRRM Headcount", page_icon="🚨")
 st.title("🚨 BeNHS Emergency Headcount")
 
 # --- 1. SELECTION LOGIC ---
-# First, Select Division
 division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True)
-
-# Adviser Name appears after Division selection
 teacher_name = st.text_input("Adviser Name", key="adv_name")
 
 grade = None
@@ -45,18 +42,20 @@ elif division == "SHS":
     # Grade 12
     elif grade == 12:
         track = st.radio("Track", ["TVL", "ACAD"], index=None, horizontal=True)
-        if track == "TVL":
-            section = st.selectbox("Section", get_sections(9), index=None) # A-I
-            if section: section_label = f"SHS - Grade 12 - TVL - {section}"
-        elif track == "ACAD":
-            strand = st.selectbox("Strand", ["HUMSS", "STEM", "ABM", "SPORTS"], index=None)
-            if strand:
-                # Section mapping
-                strands = {"HUMSS": 5, "STEM": 3, "ABM": 3, "SPORTS": 1}
-                section = st.selectbox("Section", get_sections(strands[strand]), index=None)
-                if section: section_label = f"SHS - Grade 12 - ACAD - {strand} - {section}"
+        if track:
+            if track == "TVL":
+                section = st.selectbox("Section", get_sections(9), index=None) # A-I
+                if section: section_label = f"SHS - Grade 12 - TVL - {section}"
+            elif track == "ACAD":
+                strand = st.selectbox("Strand", ["HUMSS", "STEM", "ABM", "SPORTS"], index=None)
+                if strand:
+                    # Section mapping
+                    strands = {"HUMSS": 5, "STEM": 3, "ABM": 3, "SPORTS": 1}
+                    section = st.selectbox("Section", get_sections(strands[strand]), index=None)
+                    if section: section_label = f"SHS - Grade 12 - ACAD - {strand} - {section}"
 
 # --- 2. INPUT FORM ---
+# Only show the form if they have finished making selections
 if section_label:
     st.write("---")
     with st.form("headcount_form"):
@@ -89,13 +88,16 @@ if section_label:
 
 # --- Coordinator Dashboard ---
 if st.sidebar.checkbox("Coordinator: View Master List"):
-    if os.path.exists(DATA_FILE):
-        df = pd.read_csv(DATA_FILE)
+    # This now works because 'os' is imported at the top!
+    if os.path.exists("headcount_log.csv"):
+        df = pd.read_csv("headcount_log.csv")
         st.write("### Current Headcount Status")
         st.dataframe(df)
         st.metric("Total Missing Students", int(df['Missing'].sum()))
         
         if st.button("Reset/Clear Data"):
-            if os.path.exists(DATA_FILE):
-                os.remove(DATA_FILE)
+            if os.path.exists("headcount_log.csv"):
+                os.remove("headcount_log.csv")
                 st.rerun()
+    else:
+        st.write("No data recorded yet.")
