@@ -1,14 +1,29 @@
+# --- IMPORT LIBRARIES AT THE VERY TOP ---
+import streamlit as st
+import pandas as pd
+import string
+from datetime import datetime
+import os
+
+# --- Helper: Generate list of section letters ---
+def get_sections(count):
+    return list(string.ascii_uppercase[:count])
+
+st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
+st.title("🚨 BeNHS Emergency Headcount")
+
 # --- Input Form ---
 with st.form("headcount_form"):
     teacher_name = st.text_input("Adviser Name")
     
-    division = st.radio("Select Junior High or Senior High", ["JHS", "SHS"], index=None, horizontal=True)
+    # 1. No default division selected
+    division = st.radio("Select Division", ["JHS", "SHS"], index=None, horizontal=True)
     
     grade = None
     section = None
     section_label = ""
     
-    # Selection Logic
+    # 2. Logic to show fields only after selection
     if division == "JHS":
         grade = st.selectbox("Grade Level", [7, 8, 9, 10], index=None)
         if grade:
@@ -39,9 +54,10 @@ with st.form("headcount_form"):
     # THE FIX: Always define the button inside the form
     submit = st.form_submit_button("Submit Headcount")
 
-# --- Submission Logic (Moved outside the 'with' block) ---
+# --- Submission Logic (Outside the 'with' block) ---
+DATA_FILE = "headcount_log.csv"
+
 if submit:
-    # Check if they actually filled everything out
     if not teacher_name or not section_label:
         st.error("Please ensure you have selected your Grade, Track/Section, and entered your Name.")
     else:
@@ -58,3 +74,19 @@ if submit:
         header = False if os.path.exists(DATA_FILE) else True
         df.to_csv(DATA_FILE, mode='a', header=header, index=False)
         st.success(f"Report submitted for {section_label}. Stay safe!")
+
+# --- Coordinator Dashboard ---
+if st.sidebar.checkbox("Coordinator: View Master List"):
+    if os.path.exists(DATA_FILE):
+        df = pd.read_csv(DATA_FILE)
+        st.write("### Current Headcount Status")
+        st.dataframe(df)
+        
+        st.metric("Total Missing Students", int(df['Missing'].sum()))
+        
+        if st.button("Reset/Clear Data"):
+            if os.path.exists(DATA_FILE):
+                os.remove(DATA_FILE)
+                st.rerun()
+    else:
+        st.write("No data recorded.")
