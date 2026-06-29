@@ -9,12 +9,12 @@ import io
 def get_sections(count):
     return list(string.ascii_uppercase[:count])
 
-st.set_page_config(page_title="BeNHS SDRRM Headcount", page_icon="🚨")
-st.title("🚨 BeNHS Emergency Headcount")
+st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
+st.title("🚨 BNHS Emergency Headcount")
 
 DATA_FILE = "headcount_log.csv"
 
-# --- 1. LOAD EXISTING DATA TO FILTER DUPLICATES ---
+# --- 1. LOAD EXISTING DATA (For Duplicate Prevention) ---
 already_submitted = []
 if os.path.exists(DATA_FILE):
     df_existing = pd.read_csv(DATA_FILE)
@@ -34,14 +34,14 @@ if division == "JHS":
     if grade:
         count = 15 if grade == 7 else 14
         all_sects = [f"JHS - Grade {grade} - {s}" for s in get_sections(count)]
-        # Filter out already submitted
+        # Filter: Only show sections not in the CSV
         available = [s for s in all_sects if s not in already_submitted]
-        
         section_label = st.selectbox("Select Available Section", available, index=None)
 
 # SHS Logic
 elif division == "SHS":
     grade = st.selectbox("Grade Level", [11, 12], index=None)
+    
     if grade == 11:
         track = st.radio("Track", ["TechPro", "Academics"], index=None, horizontal=True)
         if track:
@@ -54,9 +54,10 @@ elif division == "SHS":
         track = st.radio("Track", ["TVL", "ACAD"], index=None, horizontal=True)
         if track:
             if track == "TVL":
-                all_sects = [f"SHS - Grade 12 - TVL - {s}" for s in get_sections(9)]
+                all_sects = [f"SHS - Grade 12 - TVL - {s}" for s in get_sections(9)] # A-I
                 available = [s for s in all_sects if s not in already_submitted]
                 section_label = st.selectbox("Select Available Section", available, index=None)
+            
             elif track == "ACAD":
                 strand = st.selectbox("Strand", ["HUMSS", "STEM", "ABM", "SPORTS"], index=None)
                 if strand:
@@ -92,8 +93,8 @@ if section_label:
             df = pd.DataFrame(entry)
             header = False if os.path.exists(DATA_FILE) else True
             df.to_csv(DATA_FILE, mode='a', header=header, index=False)
-            st.success(f"Report submitted for {section_label}. Refreshing list...")
-            st.rerun() # Refresh to update the 'available' list immediately
+            st.success(f"Report submitted for {section_label}. Refreshing...")
+            st.rerun()
 
 # --- 4. COORDINATOR DASHBOARD ---
 if st.sidebar.checkbox("Coordinator: View Master List"):
