@@ -3,7 +3,7 @@ import pandas as pd
 import string
 from datetime import datetime
 
-# Helper: Generate list of section letters
+# Helper: Generate list of section letters (A, B, C...)
 def get_sections(count):
     return list(string.ascii_uppercase[:count])
 
@@ -14,31 +14,35 @@ st.title("🚨 BNHS Emergency Headcount")
 with st.form("headcount_form"):
     teacher_name = st.text_input("Adviser Name")
     
-    # 1. Level Selection (The top-level gatekeeper)
+    # 1. Choose Division (Determines the next options)
     division = st.radio("Select Division", ["JHS", "SHS"], horizontal=True)
     
+    # Initialize variables
     section_label = ""
+    grade = None
     
+    # 2. Logic for Grade Levels based on Division
     if division == "JHS":
         grade = st.selectbox("Grade Level", [7, 8, 9, 10])
+        
+        # Section logic for JHS
         if grade == 7:
-            # A-O
-            section = st.selectbox("Section", get_sections(15))
+            section = st.selectbox("Section", get_sections(15)) # A-O
         else:
-            # A-N
-            section = st.selectbox("Section", get_sections(14))
+            section = st.selectbox("Section", get_sections(14)) # A-N
+        
         section_label = f"JHS - Grade {grade} - {section}"
         
     else: # SHS Division
         grade = st.selectbox("Grade Level", [11, 12])
         track = st.radio("Track", ["TechPro", "Academics"], horizontal=True)
         
+        # Section logic for SHS
         if track == "TechPro":
-            # A-J
-            section = st.selectbox("Section", get_sections(10))
+            section = st.selectbox("Section", get_sections(10)) # A-J
         else:
-            # A-L
-            section = st.selectbox("Section", get_sections(12))
+            section = st.selectbox("Section", get_sections(12)) # A-L
+            
         section_label = f"SHS - Grade {grade} - {track} - {section}"
 
     col1, col2 = st.columns(2)
@@ -68,7 +72,7 @@ if submit:
         df = pd.DataFrame(entry)
         header = False if pd.io.common.file_exists(DATA_FILE) else True
         df.to_csv(DATA_FILE, mode='a', header=header, index=False)
-        st.success(f"Report submitted for {section_label}.")
+        st.success(f"Report submitted for {section_label}. Stay safe!")
 
 # --- Coordinator Dashboard ---
 if st.sidebar.checkbox("Coordinator: View Master List"):
@@ -77,7 +81,7 @@ if st.sidebar.checkbox("Coordinator: View Master List"):
         st.write("### Current Headcount Status")
         st.dataframe(df)
         
-        # Quick summary metrics
+        # Quick metrics
         st.metric("Total Missing Students", df['Missing'].sum())
         
         if st.button("Reset/Clear Data"):
