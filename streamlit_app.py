@@ -9,7 +9,7 @@ def get_sections(count):
     return list(string.ascii_uppercase[:count])
 
 st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
-st.title("🚨 BNHS Emergency Headcount")
+st.title("🚨 BeNHS Emergency Headcount")
 
 # --- Input Form ---
 with st.form("headcount_form"):
