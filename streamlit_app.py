@@ -3,47 +3,49 @@ import pandas as pd
 import string
 from datetime import datetime
 
-# Setup
-st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
-st.title("🚨 School Emergency Headcount")
-
 # Helper: Generate list of section letters
-# A=0, B=1, ... O=14 (index 15)
 def get_sections(count):
     return list(string.ascii_uppercase[:count])
 
+st.set_page_config(page_title="BNHS DRRM Headcount", page_icon="🚨")
+st.title("🚨 BNHS Emergency Headcount")
+
 # --- Input Form ---
 with st.form("headcount_form"):
-    teacher_name = st.text_input("Teacher/Adviser Name")
-    grade = st.selectbox("Grade Level", [7, 8, 9, 10, 11, 12])
+    teacher_name = st.text_input("Adviser Name")
     
-    # Section Logic
-    section = None
+    # 1. Level Selection (The top-level gatekeeper)
+    division = st.radio("Select Division", ["JHS", "SHS"], horizontal=True)
+    
     section_label = ""
     
-    if grade in [7, 8, 9, 10]:
-        # JHS Logic
+    if division == "JHS":
+        grade = st.selectbox("Grade Level", [7, 8, 9, 10])
         if grade == 7:
-            # A-O (15 letters)
+            # A-O
             section = st.selectbox("Section", get_sections(15))
         else:
-            # A-N (14 letters)
+            # A-N
             section = st.selectbox("Section", get_sections(14))
-        section_label = f"Grade {grade} - {section}"
+        section_label = f"JHS - Grade {grade} - {section}"
         
-    else:
-        # SHS Logic (11, 12)
-        track = st.radio("SHS Track", ["TechPro", "Academics"])
+    else: # SHS Division
+        grade = st.selectbox("Grade Level", [11, 12])
+        track = st.radio("Track", ["TechPro", "Academics"], horizontal=True)
+        
         if track == "TechPro":
-            # A-J (10 letters)
+            # A-J
             section = st.selectbox("Section", get_sections(10))
         else:
-            # A-L (12 letters)
+            # A-L
             section = st.selectbox("Section", get_sections(12))
-        section_label = f"Grade {grade} - {track} - {section}"
+        section_label = f"SHS - Grade {grade} - {track} - {section}"
 
-    present = st.number_input("Students Present", min_value=0, step=1)
-    missing = st.number_input("Students Missing/Unaccounted", min_value=0, step=1)
+    col1, col2 = st.columns(2)
+    with col1:
+        present = st.number_input("Students Present", min_value=0, step=1)
+    with col2:
+        missing = st.number_input("Students Missing", min_value=0, step=1)
     
     submit = st.form_submit_button("Submit Headcount")
 
@@ -54,38 +56,34 @@ if submit:
     if not teacher_name:
         st.error("Please enter your name.")
     else:
-        # Create a dictionary for the new entry
         entry = {
             'Timestamp': [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
             'Teacher': [teacher_name],
+            'Level': [division],
             'Section_Info': [section_label],
             'Present': [present],
             'Missing': [missing]
         }
         
-        # Save to CSV
         df = pd.DataFrame(entry)
-        # Write to file (create if not exists)
         header = False if pd.io.common.file_exists(DATA_FILE) else True
         df.to_csv(DATA_FILE, mode='a', header=header, index=False)
-        
-        st.success(f"Report submitted for {section_label}. Stay safe!")
+        st.success(f"Report submitted for {section_label}.")
 
-# --- Coordinator View ---
+# --- Coordinator Dashboard ---
 if st.sidebar.checkbox("Coordinator: View Master List"):
     if pd.io.common.file_exists(DATA_FILE):
         df = pd.read_csv(DATA_FILE)
         st.write("### Current Headcount Status")
         st.dataframe(df)
         
-        # Simple summary
-        total_missing = df['Missing'].sum()
-        st.metric("Total Missing Students", total_missing)
+        # Quick summary metrics
+        st.metric("Total Missing Students", df['Missing'].sum())
         
-        if st.button("Clear Records"):
-            # Caution: In real usage, maybe archive instead of deleting
+        if st.button("Reset/Clear Data"):
             import os
-            os.remove(DATA_FILE)
-            st.rerun()
+            if os.path.exists(DATA_FILE):
+                os.remove(DATA_FILE)
+                st.rerun()
     else:
-        st.write("No data recorded yet.")
+        st.write("No data recorded.")
